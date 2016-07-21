@@ -1,0 +1,94 @@
+#!/bin/bash
+#
+# Prompt Colors
+# =============
+#
+# Define colors for the prompt 
+# 00=none 01=bold 02=dark 03=italic 04=underscore 05=blink 07=reverse 08=concealed
+# 30=black 31=red 32=green 33=yellow 34=blue 35=magenta 36=cyan 37=white
+# 3X = Foreground color  4X = Background color
+#
+# (S=Bold/Strong,D=Dark,I=Italic,U=Underline,L=Blink,R=Reverse)
+# (R=Red G=Green B=Blue C=Cyan M=Magenta Y=Yellow K=Black W=White)
+
+declare -r W="\[\e[00m\]"
+declare -r R="\[\e[00;31m\]"
+declare -r Y="\[\e[00;33m\]"
+declare -r B="\[\e[00;34m\]"
+declare -r C="\[\e[00;36m\]"
+declare -r SR="\[\e[01;31m\]"
+declare -r SG="\[\e[01;32m\]"
+declare -r SB="\[\e[01;34m\]"
+
+# Color setup
+eval "$(dircolors)"
+
+### PROMPT_COMMAND ###
+__prompt_command() {
+	# Store command return value
+	local RET="$?"
+	
+	# Check UID
+	if [ $EUID -eq 0 ]; then
+		PROMPT_ROOT=1
+	else
+		PROMPT_ROOT=
+	fi
+	
+	###############################
+	### Set PROMPT_RETURN value ###
+	###############################
+	local cmd=$(history 1)
+	cmd=${cmd:1}
+	local cmd_num=${cmd%% *}
+	: ${PROMPT_LAST_CMD_NUM:=$cmd_num}
+	if [ $PROMPT_LAST_CMD_NUM -ne $cmd_num -a $RET -ne 0 ]; then
+		PROMPT_RETURN=$RET
+	else
+		PROMPT_RETURN=
+	fi
+	PROMPT_LAST_CMD_NUM=$cmd_num
+	
+	########################
+	### VCS Branch Names ###
+	########################
+	local branch
+	
+	VCS_BRANCH=
+	VCS_BRANCH_SHORT=
+	VCS_BRANCH_LONG=
+	
+	# Git branches
+	if type -t __git_ps1 >/dev/null; then
+		branch=$(__git_ps1 "(%s)")
+		[ -n "$branch" ] && VCS_BRANCH="$branch"
+	fi
+	
+	# SVN branches
+	# https://github.com/mcandre/svn-prompt
+	if type -t parse_svn_branch >/dev/null; then
+		branch=$(parse_svn_branch)
+		[ -n "$branch" ] && VCS_BRANCH="$branch"
+	fi
+	
+	# Long/short branch name (for multiline prompt)
+	if [ "${#VCS_BRANCH}" -gt "25" ]; then
+		VCS_BRANCH_LONG="$VCS_BRANCH"
+	elif [ -n "$VCS_BRANCH" ]; then
+		VCS_BRANCH_SHORT="$VCS_BRANCH"
+	fi
+	
+	export ${!VCS_*}
+}
+PROMPT_COMMAND="__prompt_command;$PROMPT_COMMAND"
+### PROMPT_COMMAND ###
+
+# Single line prompt
+# export PS1="${debian_chroot:+($debian_chroot)}$B\w \${VCS_BRANCH:+$R(\$VCS_BRANCH) }$SB\$$W "
+
+# Multiline for long branch names
+export PS1=\
+"\${VCS_BRANCH_LONG:+\n$R\$VCS_BRANCH$W\n}"\
+"\${PROMPT_RETURN:+$Y\$PROMPT_RETURN$W }"\
+"${debian_chroot:+($debian_chroot)}"\
+"$B\\w \${VCS_BRANCH_SHORT:+$R\$VCS_BRANCH }$SB\${PROMPT_ROOT:+$SR}\\\$$W "
