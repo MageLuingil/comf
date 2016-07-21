@@ -30,22 +30,22 @@ __prompt_command() {
 	
 	# Check UID
 	if [ $EUID -eq 0 ]; then
-		PROMPT_ROOT=1
+		PS1_ROOT=1
 	else
-		PROMPT_ROOT=
+		PS1_ROOT=
 	fi
 	
 	###############################
-	### Set PROMPT_RETURN value ###
+	### Set prompt return value ###
 	###############################
 	local cmd=$(history 1)
 	cmd=${cmd:1}
 	local cmd_num=${cmd%% *}
 	: ${PROMPT_LAST_CMD_NUM:=$cmd_num}
 	if [ $PROMPT_LAST_CMD_NUM -ne $cmd_num -a $RET -ne 0 ]; then
-		PROMPT_RETURN=$RET
+		PS1_RETURN=$RET
 	else
-		PROMPT_RETURN=
+		PS1_RETURN=
 	fi
 	PROMPT_LAST_CMD_NUM=$cmd_num
 	
@@ -59,14 +59,14 @@ __prompt_command() {
 	VCS_BRANCH_LONG=
 	
 	# Git branches
-	if type -t __git_ps1 >/dev/null; then
+	if hash __git_ps1 2>/dev/null; then
 		branch=$(__git_ps1 "(%s)")
 		[ -n "$branch" ] && VCS_BRANCH="$branch"
 	fi
 	
 	# SVN branches
 	# https://github.com/mcandre/svn-prompt
-	if type -t parse_svn_branch >/dev/null; then
+	if hash parse_svn_branch 2>/dev/null; then
 		branch=$(parse_svn_branch)
 		[ -n "$branch" ] && VCS_BRANCH="$branch"
 	fi
@@ -88,7 +88,7 @@ PROMPT_COMMAND="__prompt_command;$PROMPT_COMMAND"
 
 # Multiline for long branch names
 export PS1=\
+"\${PS1_RETURN:+$Y\$PS1_RETURN$W }"\
 "\${VCS_BRANCH_LONG:+\n$R\$VCS_BRANCH$W\n}"\
-"\${PROMPT_RETURN:+$Y\$PROMPT_RETURN$W }"\
-"${debian_chroot:+($debian_chroot)}"\
-"$B\\w \${VCS_BRANCH_SHORT:+$R\$VCS_BRANCH }$SB\${PROMPT_ROOT:+$SR}\\\$$W "
+"${debian_chroot:+($debian_chroot) }"\
+"$B\\w \${VCS_BRANCH_SHORT:+$R\$VCS_BRANCH }$SB\${PS1_ROOT:+$SR}\\\$$W "
