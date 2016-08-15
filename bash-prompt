@@ -1,69 +1,68 @@
 #!/bin/bash
+# Custom bash prompt
+# Author: Daniel Matthies <mageluingil@gmail.com>
+# 
+# ----Format----
+# [exit-status ][
+# long branch name (multiline)
+# ][chroot ][ssh-host ]dir [short branch name ] $ 
 
 ### PROMPT_COMMAND ###
 __prompt_command() {
-	# Store command return value (MUST be first line)
-	local cmd_ret="$?"
+	local cmd_ret="$?" # Store command return value (MUST be first line)
+	unset -v ${!PS1_*} # Remove all temporary PS1 customization variables
 	
 	###############################
-	### Set prompt return value ###
+	### Save prompt exit status ###
 	###############################
-	local cmd=( $(history 1) )
-	local cmd_num=${cmd[0]}
-	: ${PROMPT_LAST_CMD_NUM:=$cmd_num}
-	if [ $PROMPT_LAST_CMD_NUM -ne $cmd_num -a $cmd_ret -ne 0 ]; then
-		PS1_RETURN=$cmd_ret
-	else
-		PS1_RETURN=
-	fi
-	PROMPT_LAST_CMD_NUM=$cmd_num
+	# Disable history options (we need the full history)
+	PROMPT_HISTCONTROL="${HISTCONTROL-$PROMPT_HISTCONTROL}"
+	unset -v HISTCONTROL
 	
-	##########################
-	### Check UID for root ###
-	##########################
-	if [ $EUID -eq 0 ]; then
-		PS1_ROOT=1
-	else
-		PS1_ROOT=
+	# Parse the last command from history
+	local cmd cmd_num cmd_hist="$(history 1)"
+	read cmd_num _ <<<"$cmd_hist"
+	cmd="$(shopt -s extglob; echo "${cmd_hist##+([[:space:]])+([[:digit:]])? }")" # Preserve whitespace in command
+	
+	# Only show error exit status, and only once per command
+	: "${PROMPT_LAST_CMD_NUM:=0}" # initialize
+	if [[ "$PROMPT_LAST_CMD_NUM" != "$cmd_num" && $cmd_ret -ne 0 ]]; then
+		PS1_RETURN="$cmd_ret"
 	fi
+	
+	# Re-evaluate history with original HISTCONTROL value
+	history -d "${cmd_num%\*}"
+	HISTCONTROL="$PROMPT_HISTCONTROL" history -s "$cmd"
+	
+	# Save the last effective command number
+	read PROMPT_LAST_CMD_NUM _ <<<"$(history 1)"
 	
 	########################
 	### VCS Branch Names ###
 	########################
-	local branch
-	
-	VCS_BRANCH=
-	VCS_BRANCH_SHORT=
-	VCS_BRANCH_LONG=
-	
 	# Git branches
-	if hash __git_ps1 2>/dev/null; then
-		branch=$(__git_ps1 "(%s)")
-		[ -n "$branch" ] && VCS_BRANCH="$branch"
+	if [[ -z "$PS1_VCS_BRANCH" ]] && hash __git_ps1 2>/dev/null; then
+		PS1_VCS_BRANCH=$(__git_ps1 "(%s)")
 	fi
 	
-	# SVN branches
-	# https://github.com/mcandre/svn-prompt
-	if hash parse_svn_branch 2>/dev/null; then
-		branch=$(parse_svn_branch)
-		[ -n "$branch" ] && VCS_BRANCH="$branch"
+	# SVN branches (https://github.com/mcandre/svn-prompt)
+	if [[ -z "$PS1_VCS_BRANCH" ]] && hash parse_svn_branch 2>/dev/null; then
+		PS1_VCS_BRANCH=$(parse_svn_branch)
 	fi
 	
 	# Long/short branch name (for multiline prompt)
-	if [ "${#VCS_BRANCH}" -gt "25" ]; then
-		VCS_BRANCH_LONG="$VCS_BRANCH"
-	elif [ -n "$VCS_BRANCH" ]; then
-		VCS_BRANCH_SHORT="$VCS_BRANCH"
+	if ((${#PS1_VCS_BRANCH} > 25)); then
+		PS1_VCS_BRANCH_LONG="$PS1_VCS_BRANCH"
+	elif ((${#PS1_VCS_BRANCH} > 0)); then
+		PS1_VCS_BRANCH_SHORT="$PS1_VCS_BRANCH"
 	fi
-	
-	export ${!VCS_*}
 }
 PROMPT_COMMAND="__prompt_command;$PROMPT_COMMAND"
 ### PROMPT_COMMAND ###
 
 __set_ps1() {
 	# Define colors for the prompt
-	# (S=Bold/Strong,D=Dark,I=Italic,U=Underline,BG=Background)
+	# (S=Bold/Strong,D=Dark,I=Italic,U=Underline,H=Concealed/Hidden)
 	# (R=Red G=Green B=Blue C=Cyan M=Magenta Y=Yellow K=Black W=White)
 	local -r RES="\[\e[0m\]" # Reset to default
 	local -r K="\[\e[30m\]" SK="\[\e[1;30m\]" # DK="\[\e[2;30m\]" IK="\[\e[3;30m\]" UK="\[\e[4;30m\]" BGK="\[\e[40m\]"
@@ -75,15 +74,19 @@ __set_ps1() {
 	local -r C="\[\e[36m\]" SC="\[\e[1;36m\]" # DC="\[\e[2;36m\]" IC="\[\e[3;36m\]" UC="\[\e[4;36m\]" BGC="\[\e[46m\]"
 	local -r W="\[\e[37m\]" SW="\[\e[1;37m\]" # DW="\[\e[2;37m\]" IW="\[\e[3;37m\]" UW="\[\e[4;37m\]" BGW="\[\e[47m\]"
 	
-	# Single line prompt
-	# export PS1="${debian_chroot:+($debian_chroot)}$B\w \${VCS_BRANCH:+$R(\$VCS_BRANCH) }$SB\$$W "
-
-	# Multiline for long branch names
-	PS1="\${PS1_RETURN:+$Y\$PS1_RETURN$RES }"
-	PS1+="\${VCS_BRANCH_LONG:+\n$R\$VCS_BRANCH$RES\n}"
-	PS1+="${debian_chroot:+($debian_chroot) }"
-	PS1+="${SSH_TTY:+$SR\h$RES:}"
-	PS1+="$B\\w \${VCS_BRANCH_SHORT:+$R\$VCS_BRANCH }$SB\${PS1_ROOT:+$SR}\\\$$RES "
+	# Check if user is root
+	((EUID == 0)) && local is_root=1
+	
+	# Check for SSH
+	[[ -n "$SSH_TTY" || -n "$SSH_CONNECTION" || -n "$SSH_CLIENT" ]] && local is_ssh=1
+	(($(tput colors) >= 256)) && local host_color="\[\e[1;38;5;124m\]" # lapis 25, raspberry 125, mint 156
+	
+	PS1="$RES"
+	PS1+="\${PS1_RETURN:+$Y\$PS1_RETURN$RES }" # exit status (if non-zero)
+	PS1+="\${PS1_VCS_BRANCH_LONG:+\n$R\$PS1_VCS_BRANCH$RES\n}" # multiline for long branch names
+	PS1+="${debian_chroot:+($debian_chroot) }" # chroot stuff
+	PS1+="${is_ssh:+${host_color:-$SR}\h$RES:}" # hostname (if SSH)
+	PS1+="$B\\w \${PS1_VCS_BRANCH_SHORT:+$R\$PS1_VCS_BRANCH }$SB${is_root:+$SR}\\\$$RES " # dir [branch ]$ 
 }
 
 __set_ps1
