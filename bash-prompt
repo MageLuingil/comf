@@ -24,9 +24,8 @@ __prompt_command() {
 	read cmd_num _ <<<"$cmd_hist"
 	cmd="$(shopt -s extglob; echo "${cmd_hist##+([[:space:]])+([[:digit:]])? }")" # Preserve whitespace in command
 	
-	# Only show error exit status, and only once per command
-	: "${PROMPT_LAST_CMD_NUM:=0}" # initialize
-	if [[ "$PROMPT_LAST_CMD_NUM" != "$cmd_num" && $cmd_ret -ne 0 ]]; then
+	# Only show error exit status, only once per command, and never on the first line
+	if [[ -n $PROMPT_LAST_CMD_NUM && $PROMPT_LAST_CMD_NUM != $cmd_num && $cmd_ret -ne 0 ]]; then
 		PS1_RETURN="$cmd_ret"
 	fi
 	
