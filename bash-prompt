@@ -1,13 +1,13 @@
 #!/bin/bash
 # Custom bash prompt
 # Author: Daniel Matthies <mageluingil@gmail.com>
+# Revised: 2017-02-23
 # 
 # ----Format----
 # [exit-status ][
 # long branch name (multiline)
-# ][chroot ][ssh-host ]dir [short branch name ] $ 
+# ][(chroot) ][su-user@][ssh-host:]dir [short branch name ] $ 
 
-### PROMPT_COMMAND ###
 __prompt_command() {
 	local cmd_ret="$?" # Store command return value (MUST be first line)
 	unset -v ${!PS1_*} # Remove all temporary PS1 customization variables
@@ -34,7 +34,7 @@ __prompt_command() {
 	HISTCONTROL="$PROMPT_HISTCONTROL" history -s "$cmd"
 	
 	# Save the last effective command number
-	read PROMPT_LAST_CMD_NUM _ <<<"$(history 1)"
+	read PROMPT_LAST_CMD_NUM _ < <(history 1)
 	
 	########################
 	### VCS Branch Names ###
@@ -57,35 +57,39 @@ __prompt_command() {
 	fi
 }
 PROMPT_COMMAND="__prompt_command;$PROMPT_COMMAND"
-### PROMPT_COMMAND ###
+
+is_ssh() {
+	# Check for SSH env vars
+	[[ -n "$SSH_TTY" || -n "$SSH_CONNECTION" || -n "$SSH_CLIENT" ]] && return 0
+	# Check for SSH parent process recursively
+	local name ppid
+	read name ppid < <(ps -o comm= -o ppid= -p ${1:-$PPID})
+	[[ "$name" =~ sshd ]] && return 0
+	(( $ppid <= 1 )) && return 1
+	is_ssh $ppid
+}
 
 __set_ps1() {
-	# Define colors for the prompt
-	# (S=Bold/Strong,D=Dark,I=Italic,U=Underline,H=Concealed/Hidden)
-	# (R=Red G=Green B=Blue C=Cyan M=Magenta Y=Yellow K=Black W=White)
-	local -r RES="\[\e[0m\]" # Reset to default
-	local -r K="\[\e[30m\]" SK="\[\e[1;30m\]" # DK="\[\e[2;30m\]" IK="\[\e[3;30m\]" UK="\[\e[4;30m\]" BGK="\[\e[40m\]"
-	local -r R="\[\e[31m\]" SR="\[\e[1;31m\]" # DR="\[\e[2;31m\]" IR="\[\e[3;31m\]" UR="\[\e[4;31m\]" BGR="\[\e[41m\]"
-	local -r G="\[\e[32m\]" SG="\[\e[1;32m\]" # DG="\[\e[2;32m\]" IG="\[\e[3;32m\]" UG="\[\e[4;32m\]" BGG="\[\e[42m\]"
-	local -r Y="\[\e[33m\]" SY="\[\e[1;33m\]" # DY="\[\e[2;33m\]" IY="\[\e[3;33m\]" UY="\[\e[4;33m\]" BGY="\[\e[43m\]"
-	local -r B="\[\e[34m\]" SB="\[\e[1;34m\]" # DB="\[\e[2;34m\]" IB="\[\e[3;34m\]" UB="\[\e[4;34m\]" BGB="\[\e[44m\]"
-	local -r M="\[\e[35m\]" SM="\[\e[1;35m\]" # DM="\[\e[2;35m\]" IM="\[\e[3;35m\]" UM="\[\e[4;35m\]" BGM="\[\e[45m\]"
-	local -r C="\[\e[36m\]" SC="\[\e[1;36m\]" # DC="\[\e[2;36m\]" IC="\[\e[3;36m\]" UC="\[\e[4;36m\]" BGC="\[\e[46m\]"
-	local -r W="\[\e[37m\]" SW="\[\e[1;37m\]" # DW="\[\e[2;37m\]" IW="\[\e[3;37m\]" UW="\[\e[4;37m\]" BGW="\[\e[47m\]"
+	# Define colors; S = Strong, RES = Reset
+	local -r RES="\[\e[0m\]"
+	local -r R="\[\e[31m\]" SR="\[\e[1;31m\]" SG="\[\e[1;32m\]" Y="\[\e[33m\]" B="\[\e[34m\]" SB="\[\e[1;34m\]"
 	
 	# Check if user is root
-	((EUID == 0)) && local is_root=1
-	
-	# Check for SSH
-	[[ -n "$SSH_TTY" || -n "$SSH_CONNECTION" || -n "$SSH_CLIENT" ]] && local is_ssh=1
+	((EUID == 0)) && local is_root="$SR"
+	# Check if using su
+	[[ $(whoami) != $(who am i | awk '{print $1}') ]] && local show_user=1
+	# Check for SSH & color support
+	is_ssh && local show_host=1
 	(($(tput colors) >= 256)) && local host_color="\[\e[1;38;5;124m\]" # lapis 25, raspberry 125, mint 156
 	
 	PS1="$RES"
 	PS1+="\${PS1_RETURN:+$Y\$PS1_RETURN$RES }" # exit status (if non-zero)
 	PS1+="\${PS1_VCS_BRANCH_LONG:+\n$R\$PS1_VCS_BRANCH$RES\n}" # multiline for long branch names
 	PS1+="${debian_chroot:+($debian_chroot) }" # chroot stuff
-	PS1+="${is_ssh:+${host_color:-$SR}\h$RES:}" # hostname (if SSH)
-	PS1+="$B\\w \${PS1_VCS_BRANCH_SHORT:+$R\$PS1_VCS_BRANCH }$SB${is_root:+$SR}\\\$$RES " # dir [branch ]$ 
+	PS1+="${show_user:+${is_root:-$SG}\u$RES@}" # username (if su)
+	PS1+="${show_host:+${host_color:-$SR}${HOSTNAME:-\h}$RES}" # hostname (if SSH)
+	[[ -n "$show_user" || -n "$show_host" ]] && PS1+=":"
+	PS1+="$B\\w \${PS1_VCS_BRANCH_SHORT:+$R\$PS1_VCS_BRANCH }${is_root:-$SB}\\\$$RES " # dir [branch ]$ 
 }
 
 __set_ps1
