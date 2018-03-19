@@ -1,7 +1,7 @@
 #!/bin/bash
 # Custom bash prompt
 # Author: Daniel Matthies <mageluingil@gmail.com>
-# Revised: 2017-03-14
+# Revised: 2018-03-19
 # 
 # ----Format----
 # [exit-status ][
@@ -9,29 +9,31 @@
 # ][(chroot) ][su-user@][ssh-host:]dir [short branch name ] $ 
 
 __prompt_command() {
-	local cmd_ret="$?" # Store command return value (MUST be first line)
+	local cmd_ret="$?" # Save command exit status (MUST be first line)
 	unset -v ${!PS1_*} # Remove all temporary PS1 customization variables
 	
-	###############################
-	### Save prompt exit status ###
-	###############################
 	# Disable history options (we need the full history)
 	PROMPT_HISTCONTROL="${HISTCONTROL-$PROMPT_HISTCONTROL}"
 	unset -v HISTCONTROL
 	
 	# Parse the last command from history
-	local cmd cmd_num cmd_hist="$(history 1)"
+	local cmd_num cmd cmd_hist="$(HISTTIMEFORMAT='%s ;' history 1)"
 	read cmd_num _ <<<"$cmd_hist"
-	cmd="$(shopt -s extglob; echo "${cmd_hist##+([[:space:]])+([[:digit:]])? }")" # Preserve whitespace in command
+	IFS=';' read -r _ cmd <<<"$cmd_hist" # Preserve original whitespace and escapes
 	
+	###############################
+	### Save prompt exit status ###
+	###############################
 	# Only show error exit status, only once per command, and never on the first line
 	if [[ -n $PROMPT_LAST_CMD_NUM && $PROMPT_LAST_CMD_NUM != $cmd_num && $cmd_ret -ne 0 ]]; then
 		PS1_RETURN="$cmd_ret"
 	fi
 	
 	# Re-evaluate history with original HISTCONTROL value
-	history -d "${cmd_num%\*}"
-	HISTCONTROL="$PROMPT_HISTCONTROL" history -s "$cmd"
+	if [[ -n "$PROMPT_HISTCONTROL" ]]; then
+		history -d "${cmd_num%\*}"
+		HISTCONTROL="$PROMPT_HISTCONTROL" history -s "$cmd"
+	fi
 	
 	# Save the last effective command number
 	read PROMPT_LAST_CMD_NUM _ <<<"$(history 1)"
@@ -89,6 +91,7 @@ __set_ps1() {
 	PS1+="${show_host:+${host_color:-$SR}${HOSTNAME:-\h}$N}" # hostname (if SSH)
 	[[ -n "$show_user" || -n "$show_host" ]] && PS1+=":"
 	PS1+="$B\\w \${PS1_VCS_BRANCH_SHORT:+$R\$PS1_VCS_BRANCH }${is_root:-$SB}\\\$$N " # dir [branch ]$ 
+	export PS1 # export for sudo -E
 }
 
 __set_ps1
