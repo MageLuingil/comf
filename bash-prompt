@@ -1,7 +1,7 @@
 #!/bin/bash
 # Custom bash prompt
 # Author: Daniel Matthies <mageluingil@gmail.com>
-# Revised: 2018-05-29
+# Revised: 2018-06-02
 # 
 # ----Format----
 # [exit-status ][
@@ -31,7 +31,8 @@ __prompt_command() {
 	
 	# Re-evaluate history with original HISTCONTROL value
 	if [[ -n "$PROMPT_HISTCONTROL" ]]; then
-		history -d "${cmd_num%\*}"
+		# A bug in bash 4.2 causes history -s to delete an extra history entry
+		[[ $BASH_VERSION != 4.2* ]] && history -d $cmd_num
 		HISTCONTROL="$PROMPT_HISTCONTROL" history -s "$cmd"
 	fi
 	
@@ -78,7 +79,7 @@ __set_ps1() {
 	# Check if user is root
 	((EUID == 0)) && local user_color="$SR"
 	# Check if using su
-	[[ $(whoami) != $(who am i | awk '{print $1}') ]] && local show_user=true
+	[[ $(whoami) != $(who -m | awk '{print $1}') ]] && local show_user=true
 	# Check for SSH & color support
 	is_ssh && local show_host=true
 	(($(tput colors) >= 256)) && local host_color="${HOSTCOLOR:-\[\e[1;38;5;124m\]}"
