@@ -1,7 +1,7 @@
 #!/bin/bash
 # Custom bash prompt
 # Author: Daniel Matthies <mageluingil@gmail.com>
-# Revised: 2018-06-02
+# Revised: 2018-08-25
 # 
 # ----Format----
 # [exit-status ][
@@ -79,7 +79,7 @@ __set_ps1() {
 	# Check if user is root
 	((EUID == 0)) && local user_color="$SR"
 	# Check if using su
-	[[ $(whoami) != $(who -m | awk '{print $1}') ]] && local show_user=true
+	[[ "$(whoami)" != "$(stat -c '%U' "$(tty)")" ]] && local show_user=true
 	# Check for SSH & color support
 	is_ssh && local show_host=true
 	(($(tput colors) >= 256)) && local host_color="${HOSTCOLOR:-\[\e[1;38;5;124m\]}"
