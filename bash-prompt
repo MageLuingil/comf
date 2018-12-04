@@ -1,15 +1,16 @@
 #!/bin/bash
-# Custom bash prompt
+# Just-in-time bash prompt
 # Author: Daniel Matthies <mageluingil@gmail.com>
-# Revised: 2018-08-25
+# Revised: 2018-12-03
 # 
 # ----Format----
-# [exit-status ][
-# long branch name (multiline)
+# [exit-status ][[runtime]
+# [long branch name (multiline)]
 # ][(chroot) ][su-user@][ssh-host:]dir [short branch name ] $ 
 
-__prompt_command() {
+__jit_prompt_command() {
 	local cmd_ret="$?" # Save command exit status (MUST be first line)
+	local cmd_end=$(date +%s)
 	unset -v ${!PS1_*} # Remove all temporary PS1 customization variables
 	
 	# Disable history options (we need the full history)
@@ -17,8 +18,8 @@ __prompt_command() {
 	unset -v HISTCONTROL
 	
 	# Parse the last command from history
-	local cmd_num cmd_rest cmd
-	read cmd_num cmd_rest < <(HISTTIMEFORMAT='%s ;' history 1)
+	local cmd_num cmd_start cmd_rest cmd
+	read cmd_num cmd_start cmd_rest < <(HISTTIMEFORMAT='%s ;' history 1)
 	IFS=';' read -r _ cmd <<<"$cmd_rest" # Preserve original whitespace and escapes
 	
 	###############################
@@ -29,15 +30,19 @@ __prompt_command() {
 		PS1_RETURN="$cmd_ret"
 	fi
 	
-	# Re-evaluate history with original HISTCONTROL value
-	if [[ -n "$PROMPT_HISTCONTROL" ]]; then
-		# A bug in bash 4.2 causes history -s to delete an extra history entry
-		[[ $BASH_VERSION != 4.2* ]] && history -d $cmd_num
-		HISTCONTROL="$PROMPT_HISTCONTROL" history -s "$cmd"
+	##############################
+	### Command execution time ###
+	##############################
+	local time=$(($cmd_end - $cmd_start))
+	if [[ $time -ge 10 && $PROMPT_LAST_CMD_NUM != $cmd_num ]]; then
+		if (($time >= 3600)); then
+			PS1_CMD_TIME="$(printf "%d:%02d:%02d" $(($time/3600)) $((($time%3600)/60)) $(($time%60)))"
+		elif (($time >= 60)); then
+			PS1_CMD_TIME="$(printf "%d:%02d\n" $(($time/60)) $(($time%60)))"
+		else
+			PS1_CMD_TIME="${time}s"
+		fi
 	fi
-	
-	# Save the last effective command number
-	read PROMPT_LAST_CMD_NUM _ < <(history 1)
 	
 	########################
 	### VCS Branch Names ###
@@ -58,8 +63,26 @@ __prompt_command() {
 	elif ((${#PS1_VCS_BRANCH} > 0)); then
 		PS1_VCS_BRANCH_SHORT="$PS1_VCS_BRANCH"
 	fi
+	
+	############################
+	### Multiline Formatting ###
+	############################
+	[[ -n "$PS1_CMD_TIME" || -n "$PS1_VCS_BRANCH_LONG" ]] && PS1_BR1=$'\n'
+	
+	###############
+	### Cleanup ###
+	###############
+	# Re-evaluate history with original HISTCONTROL value
+	if [[ -n "$PROMPT_HISTCONTROL" ]]; then
+		# A bug in bash 4.2 causes history -s to delete an extra history entry
+		[[ $BASH_VERSION != 4.2* ]] && history -d $cmd_num
+		HISTCONTROL="$PROMPT_HISTCONTROL" history -s "$cmd"
+	fi
+	
+	# Save the last effective command number
+	read PROMPT_LAST_CMD_NUM _ < <(history 1)
 }
-PROMPT_COMMAND="__prompt_command;$PROMPT_COMMAND"
+PROMPT_COMMAND="__jit_prompt_command;$PROMPT_COMMAND"
 
 is_ssh() {
 	# Check for SSH env vars
@@ -86,7 +109,9 @@ __set_ps1() {
 	
 	PS1="$N"
 	PS1+="\${PS1_RETURN:+$Y\$PS1_RETURN$N }" # exit status (if non-zero)
-	PS1+="\${PS1_VCS_BRANCH_LONG:+\n$R\$PS1_VCS_BRANCH$N\n}" # multiline for long branch names
+	PS1+="\${PS1_CMD_TIME:+⌛\${PS1_CMD_TIME} }" # command runtime
+	PS1+="\$PS1_BR1" # newline after long run times / before long branch names
+	PS1+="\${PS1_VCS_BRANCH_LONG:+$R\$PS1_VCS_BRANCH$N\n}" # newline after long branch names
 	PS1+="${debian_chroot:+($debian_chroot) }" # chroot stuff
 	PS1+="${show_user:+${user_color:-$SG}\u$N@}" # username (if su)
 	PS1+="${show_host:+${host_color:-$SR}${HOSTNAME:-\h}$N}" # hostname (if SSH)
