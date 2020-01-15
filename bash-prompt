@@ -105,7 +105,9 @@ __set_ps1() {
 	[[ "$(whoami)" != "$(stat -c '%U' "$(tty)")" ]] && local show_user=true
 	# Check for SSH & color support
 	is_ssh && local show_host=true
-	hash tput 2>/dev/null && (($(tput colors) >= 256)) && local host_color="${HOSTCOLOR:-\[\e[1;38;5;124m\]}"
+	if ( hash tput 2>/dev/null && (($(tput colors) >= 256)) ) || [[ $TERM = *256* ]]; then
+		local host_color="${HOSTCOLOR:-\[\e[1;38;5;124m\]}"
+	fi
 	
 	PS1="$N"
 	PS1+="\${PS1_RETURN:+$Y\$PS1_RETURN$N }" # exit status (if non-zero)
