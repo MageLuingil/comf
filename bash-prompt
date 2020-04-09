@@ -1,12 +1,16 @@
 #!/bin/bash
 # Just-in-time bash prompt
 # Author: Daniel Matthies <mageluingil@gmail.com>
-# Revised: 2020-01-15
+# Revised: 2020-04-09
 # 
 # ----Format----
 # [exit-status ][[runtime]
+# [project-name version]
 # [long branch name (multiline)]
 # ][(chroot) ][su-user@][ssh-host:]dir [short branch name ] $ 
+
+declare PROMPT_HISTCONTROL PROMPT_LAST_CMD_NUM
+declare -A PROMPT_PROJECT
 
 __jit_prompt_command() {
 	local cmd_ret="$?" # Save command exit status (MUST be first line)
@@ -44,6 +48,22 @@ __jit_prompt_command() {
 		fi
 	fi
 	
+	################
+	# Project Info #
+	################
+	
+	if [[ "${PROMPT_PROJECT[dir]}" = "$PWD" && ! -N "${PROMPT_PROJECT[meta]}" ]]; then
+		: # Only show project info on entering directory or if it's changed
+	elif hash node 2>/dev/null && [[ -f "composer.json" || -f "package.json" ]]; then
+		# For js-based (composer/npm) projects
+		PROMPT_PROJECT[dir]="$PWD"
+		[[ -f "composer.json" ]] && PROMPT_PROJECT[meta]="composer.json" || PROMPT_PROJECT[meta]="package.json"
+		PS1_PROJECT_VERSION="$(node -p "p=require('./${PROMPT_PROJECT[meta]}');[p.name||'',p.version||''].join(' ');")"
+		touch -a "${PROMPT_PROJECT[meta]}"
+	else
+		PROMPT_PROJECT=( ) # no project files found
+	fi
+	
 	########################
 	### VCS Branch Names ###
 	########################
@@ -67,7 +87,7 @@ __jit_prompt_command() {
 	############################
 	### Multiline Formatting ###
 	############################
-	[[ -n "$PS1_CMD_TIME" || -n "$PS1_VCS_BRANCH_LONG" ]] && PS1_BR1=$'\n'
+	[[ -n "$PS1_CMD_TIME" || -n "$PS1_VCS_BRANCH_LONG" || -n "$PS1_PROJECT_VERSION" ]] && PS1_BR1=$'\n'
 	
 	###############
 	### Cleanup ###
@@ -97,7 +117,7 @@ is_ssh() {
 
 __set_ps1() {
 	# Define colors (N = No style)
-	local -r N="\[\e[0m\]" R="\[\e[31m\]" Y="\[\e[33m\]" B="\[\e[34m\]" SR="\[\e[1;31m\]" SG="\[\e[1;32m\]" SB="\[\e[1;34m\]"
+	local -r N="\[\e[0m\]" R="\[\e[31m\]" Y="\[\e[33m\]" B="\[\e[34m\]" M="\[\e[35m\]" SR="\[\e[1;31m\]" SG="\[\e[1;32m\]" SB="\[\e[1;34m\]"
 	
 	# Check if user is root
 	((EUID == 0)) && local user_color="$SR"
@@ -113,6 +133,7 @@ __set_ps1() {
 	PS1+="\${PS1_RETURN:+$Y\$PS1_RETURN$N }" # exit status (if non-zero)
 	PS1+="\${PS1_CMD_TIME:+⌛\${PS1_CMD_TIME} }" # command runtime
 	PS1+="\$PS1_BR1" # newline after long run times / before long branch names
+	PS1+="\${PS1_PROJECT_VERSION:+$M[\$PS1_PROJECT_VERSION]\n$N}" # project name & version
 	PS1+="\${PS1_VCS_BRANCH_LONG:+$R\$PS1_VCS_BRANCH$N\n}" # newline after long branch names
 	PS1+="${debian_chroot:+($debian_chroot) }" # chroot stuff
 	PS1+="${show_user:+${user_color:-$SG}\u$N@}" # username (if su)
