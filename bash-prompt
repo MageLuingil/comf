@@ -1,7 +1,7 @@
 #!/bin/bash
 # Just-in-time bash prompt
 # Author: Daniel Matthies <mageluingil@gmail.com>
-# Revised: 2020-04-09
+# Revised: 2021-07-08
 # 
 # ----Format----
 # [exit-status ][[runtime]
@@ -58,7 +58,7 @@ __jit_prompt_command() {
 		# For js-based (composer/npm) projects
 		PROMPT_PROJECT[dir]="$PWD"
 		[[ -f "composer.json" ]] && PROMPT_PROJECT[meta]="composer.json" || PROMPT_PROJECT[meta]="package.json"
-		PS1_PROJECT_VERSION="$(node -p "p=require('./${PROMPT_PROJECT[meta]}');[p.name||'',p.version||''].join(' ');")"
+		PS1_PROJECT_VERSION="$(node -p "p=require('./${PROMPT_PROJECT[meta]}');[p.name||'',p.version||''].filter(Boolean).join(' ');")"
 		touch -a "${PROMPT_PROJECT[meta]}"
 	else
 		PROMPT_PROJECT=( ) # no project files found
