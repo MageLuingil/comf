@@ -1,7 +1,7 @@
 #!/bin/bash
 # Just-in-time bash prompt
 # Author: Daniel Matthies <mageluingil@gmail.com>
-# Revised: 2021-07-08
+# Revised: 2022-10-01
 # 
 # ----Format----
 # [exit-status ][[runtime]
@@ -127,6 +127,10 @@ __set_ps1() {
 	is_ssh && local show_host=true
 	if ( hash tput 2>/dev/null && (($(tput colors) >= 256)) ) || [[ $TERM = *256* ]]; then
 		local host_color="${HOSTCOLOR:-\[\e[1;38;5;124m\]}"
+	fi
+	# Check for "pretty" hostname
+	if hash hostnamectl 2>/dev/null; then
+		local HOSTNAME="$(hostnamectl --pretty)"
 	fi
 	
 	PS1="$N"
