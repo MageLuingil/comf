@@ -1,0 +1,23 @@
+[core]
+	editor = vim
+	whitespace = blank-at-eof,space-before-tab
+[user]
+	email = mageluingil@gmail.com
+	name = Daniel Matthies
+[color]
+	ui = true
+[push]
+	default = simple
+[diff]
+	tool = meld
+[difftool]
+	prompt = false
+[difftool "meld"]
+	cmd = meld "$LOCAL" "$REMOTE" 2>/dev/null
+[merge]
+	tool = meld
+[mergetool "meld"]
+	cmd = meld "$LOCAL" "$MERGED" "$REMOTE" --output "$MERGED" 2>/dev/null # Show partially merged file in middle pane
+	# cmd = meld "$LOCAL" "$BASE" "$REMOTE" --output "$MERGED" 2>/dev/null # Show shared ancestor in middle pane
+[alias]
+	new-branch = checkout origin/master-stable --no-track -b
