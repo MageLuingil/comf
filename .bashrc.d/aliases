@@ -1,0 +1,53 @@
+#!/bin/bash
+
+###############
+# CLI Utilities
+
+open-all() {
+	# Options
+	#  -0  deliminate filenames on null character
+	#      (default deliminate on newline)
+	local delim=-d'\n'
+	local OPTION OPTARG OPTIND
+	getopts "0" OPTION
+	[[ "$OPTION" == "0" ]] && delim=-0
+	shift $((OPTIND-1))
+
+	xargs $delim -L1 xdg-open
+}
+
+random-str() {
+	tr -dc 'A-Za-z0-9' < /dev/urandom | head -c ${1:-12}; echo
+}
+
+random-words() {
+    local count="${1:-5}"
+    if [[ -f "$DICEWARE_WORDLIST" ]]; then
+        for i in $(seq $count); do
+            od -An -b /dev/urandom | \
+                tr -dc 1-6 | \
+                head -c 5 | \
+                xargs -I'{}' awk '/{}/ { printf $2 " " }' "$DICEWARE_WORDLIST"
+        done
+    else
+        echo >&2 "Diceware wordlist not found; using system default"
+        shuf -n$count /usr/share/dict/words | tr '\n' ' '
+    fi
+    echo
+}
+
+###############
+# Git Utilities
+
+git-difftool-walk() {
+    I=\''{}'\'
+    git rev-list ${1}..${2:-HEAD} | tac | xargs -I"$I" sh -c "git log -1 $I; echo; git difftool -d $I~1 $I"
+}
+
+git-clean-old-branches() {
+    echo "Fetching remote master"
+    git fetch origin master >/dev/null 2>&1
+    echo "Finding merged branches"
+    git branch --merged origin/master --list | sed -n '/^  master/!s/^[ *]*//p' | xargs git branch -d
+    # git branch --merged origin/master --list | sed -n '/^  master/!s/^[ *]*//p' | xargs -d $'\n' sh -c 'for arg do echo "Deleting $arg"; git branch -d "$arg"; done' _
+}

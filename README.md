@@ -3,14 +3,13 @@ comf
 
 A collection of personal config files to quickly set up a comfy linux home environment.
 
-Currently includes
+Setup
+-----
 
-* General bash settings
-* PS1 prompt
-* User git config
-* CLI tool config
-
-TODO
-
-* Setup script
-* Aliases
+```
+curl -o- https://raw.githubusercontent.com/MageLuingil/comf/main/setup.sh | bash
+```
+or
+```
+wget -qO- https://raw.githubusercontent.com/MageLuingil/comf/main/setup.sh | bash
+```
