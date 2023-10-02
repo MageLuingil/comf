@@ -1,7 +1,7 @@
 #!/bin/bash
 # Just-in-time bash prompt
 # Author: Daniel Matthies <mageluingil@gmail.com>
-# Revised: 2022-10-01
+# Revised: 2023-10-01
 # 
 # ----Format----
 # [exit-status ][[runtime]
@@ -117,7 +117,7 @@ is_ssh() {
 
 __set_ps1() {
 	# Define colors (N = No style)
-	local -r N="\[\e[0m\]" R="\[\e[31m\]" Y="\[\e[33m\]" B="\[\e[34m\]" M="\[\e[35m\]" SR="\[\e[1;31m\]" SG="\[\e[1;32m\]" SB="\[\e[1;34m\]"
+	local -r N="\[\e[0m\]" Y="\[\e[33m\]" B="\[\e[34m\]" M="\[\e[35m\]" C="\[\e[36m\]" SR="\[\e[1;31m\]" SG="\[\e[1;32m\]" SB="\[\e[1;34m\]"
 	
 	# Check if user is root
 	((EUID == 0)) && local user_color="$SR"
@@ -138,12 +138,12 @@ __set_ps1() {
 	PS1+="\${PS1_CMD_TIME:+⌛\${PS1_CMD_TIME} }" # command runtime
 	PS1+="\$PS1_BR1" # newline after long run times / before long branch names
 	PS1+="\${PS1_PROJECT_VERSION:+$M[\$PS1_PROJECT_VERSION]\n$N}" # project name & version
-	PS1+="\${PS1_VCS_BRANCH_LONG:+$R\$PS1_VCS_BRANCH$N\n}" # newline after long branch names
+	PS1+="\${PS1_VCS_BRANCH_LONG:+$C\$PS1_VCS_BRANCH$N\n}" # newline after long branch names
 	PS1+="${debian_chroot:+($debian_chroot) }" # chroot stuff
 	PS1+="${show_user:+${user_color:-$SG}\u$N@}" # username (if su)
 	PS1+="${show_host:+${host_color:-$SR}${HOSTNAME:-\h}$N}" # hostname (if SSH)
 	[[ -n "$show_user" || -n "$show_host" ]] && PS1+=":"
-	PS1+="$B\\w \${PS1_VCS_BRANCH_SHORT:+$R\$PS1_VCS_BRANCH }${user_color:-$SB}\\\$$N " # dir [branch ]$ 
+	PS1+="$B\\w \${PS1_VCS_BRANCH_SHORT:+$C\$PS1_VCS_BRANCH }${user_color:-$SB}\\\$$N " # dir [branch ]$ 
 	export PS1 # export for sudo -E
 }
 
