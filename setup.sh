@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-declare -r COMF_BASE_URL="https://raw.githubusercontent.com/MageLuingil/comf/main"
+declare -r COMF_BASE_URL="https://raw.githubusercontent.com/MageLuingil/comf"
 declare -r COMF_PROMPT="https://gist.githubusercontent.com/MageLuingil/7efc661bf1dc0f13119ad79ccfe7aadf/raw"
 
 download_file() {
@@ -53,7 +53,7 @@ setup_bashrc() {
 	cp ~/.bashrc ~/.bashrc-dist
 	
 	# Prepend custom settings to .bashrc
-	download_file "$COMF_BASE_URL/.bashrc" - > ~/.bashrc
+	download_file "$download_url/.bashrc" - > ~/.bashrc
 	
 	# Append original .bashrc, removing duplicate lines, and lines modifying PS1
 	(awk '/^[^#]/' .bashrc && echo "PS1=") | \
@@ -80,7 +80,7 @@ setup_bash_profile() {
 	sed -ri 's/^([[:space:]]*).*?((\.|sh|bash|source) .*?.bashrc.*)/\1# Source .bashrc from .bash_profile instead\n\1# \2\n\1;/g' ~/.profile
 	
 	# Source .profile and .bashrc for interactive login shells
-	download_file "$COMF_BASE_URL/.bash_profile"
+	download_file "$download_url/.bash_profile"
 }
 
 setup_prompt() {
@@ -92,18 +92,22 @@ download_confs() {
 	local -a conf_files=( .bashrc.d/aliases .gitconfig .inputrc .vimrc )
 	local filename
 	for filename in "${conf_files[@]}"; do
-		download_file "$COMF_BASE_URL/$filename" ~/"$filename"
+		download_file "$download_url/$filename" ~/"$filename"
 	done
 }
 
 setup_environment() {
 	local OPTION OPTARG OPTIND
 	local HOME="$HOME"
+	local download_filename
+	local download_url="$COMF_BASE_URL/main"
 	local verbose=true
-	while getopts "d:qv" OPTION
+	while getopts "b:d:f:qv" OPTION
 	do
 		case "$OPTION" in
+			b) download_url="$COMF_BASE_URL/$OPTARG" ;;
 			d) HOME="$OPTARG" ;;
+			f) download_filename="$OPTARG" ;;
 			q) verbose=false ;;
 			v) verbose=true ;;
 			*) return 1 ;;
@@ -112,16 +116,23 @@ setup_environment() {
 	
 	$verbose && echo "Making a comfy home in $HOME"
 	
-	hash vim 2>/dev/null || sudo apt install -y vim
+	if [[ -n "$download_filename" ]]; then
+		download_file "$download_url/$download_filename" ~/"$download_filename"
+	else
+		hash vim 2>/dev/null || sudo apt install -y vim
+		
+		[[ -f ~/.profile-dist ]] 	|| setup_profile
+		[[ -f ~/.bashrc-dist ]] 	|| setup_bashrc
+		[[ -f ~/.bash_profile ]] 	|| setup_bash_profile
+		[[ -x ~/.bashrc.d/prompt ]] || setup_prompt
+		
+		download_confs
+	fi
 	
-	[[ -f ~/.profile-dist ]] 	|| setup_profile
-	[[ -f ~/.bashrc-dist ]] 	|| setup_bashrc
-	[[ -f ~/.bash_profile ]] 	|| setup_bash_profile
-	[[ -x ~/.bashrc.d/prompt ]] || setup_prompt
-	
-	download_confs
-	
-	[[ $- == *i* ]] && . ~/.bash_profile
+	# Source new bash configs
+	if [[ -x ~/.bash_profile ]]; then
+		. ~/.bash_profile
+	fi
 }
 
 setup_environment "$@"
