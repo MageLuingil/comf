@@ -6,7 +6,7 @@ declare -r COMF_PROMPT="https://gist.githubusercontent.com/MageLuingil/7efc661bf
 
 download_file() {
 	local srcfile="$1"
-	local destfile="${2-$HOME/$(basename $1)}"
+	local destfile="${2-$HOME/$(basename $srcfile)}"
 	local destdir="$(dirname "$destfile")"
 	
 	# Create missing directories
@@ -21,9 +21,9 @@ download_file() {
 	
 	# Download using available tools
 	if hash curl 2>/dev/null; then
-		curl -LSso "$destfile" "$1"
+		curl -LSso "$destfile" "$srcfile"
 	elif hash wget 2>/dev/null; then
-		wget --no-hsts -qO "$destfile" "$1"
+		wget --no-hsts -qO "$destfile" "$srcfile"
 	else
 		echo >&2 "Unable to download file"
 		return 1
