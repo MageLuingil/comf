@@ -2,7 +2,6 @@
 set -e
 
 declare -r COMF_BASE_URL="https://raw.githubusercontent.com/MageLuingil/comf"
-declare -r COMF_PROMPT="https://gist.githubusercontent.com/MageLuingil/7efc661bf1dc0f13119ad79ccfe7aadf/raw"
 
 download_file() {
 	local srcfile="$1"
@@ -83,16 +82,14 @@ setup_bash_profile() {
 	download_file "$download_url/.bash_profile"
 }
 
-setup_prompt() {
-	download_file "$COMF_PROMPT" ~/.bashrc.d/prompt
-	chmod +x ~/.bashrc.d/prompt
-}
-
 download_confs() {
-	local -a conf_files=( .bashrc.d/aliases .gitconfig .inputrc .vimrc )
+	local -a conf_files=( .bashrc.d/aliases .bashrc.d/prompt .gitconfig .inputrc .vimrc )
 	local filename
 	for filename in "${conf_files[@]}"; do
 		download_file "$download_url/$filename" ~/"$filename"
+		if [[ "$(dirname "$filename")" = ".bashrc.d" ]]; then
+			chmod +x ~/"$filename"
+		fi
 	done
 }
 
@@ -124,7 +121,6 @@ setup_environment() {
 		[[ -f ~/.profile-dist ]] 	|| setup_profile
 		[[ -f ~/.bashrc-dist ]] 	|| setup_bashrc
 		[[ -f ~/.bash_profile ]] 	|| setup_bash_profile
-		[[ -x ~/.bashrc.d/prompt ]] || setup_prompt
 		
 		download_confs
 	fi

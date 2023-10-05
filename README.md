@@ -31,8 +31,3 @@ Available options:
 |  `-d`  | Specify a home directory other than `$HOME`
 |  `-f`  | Only download the specified file, nothing else
 |  `-q`  | Quiet mode - suppress output
-
-TODO
-----
-
-* Move prompt to this repo
