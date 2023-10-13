@@ -57,7 +57,7 @@ setup_bashrc() {
 	# Append original .bashrc, removing duplicate lines, and lines modifying PS1
 	(awk '/^[^#]/' .bashrc && echo "PS1=") | \
 		grep -Fnf- ~/.bashrc-dist | \
-		awk -F: '($2 !~ /^#/) { print $1 " s/^([[:space:]]*)(.*)/\\1# Removed by comf\\n\\1; # \\2/;" }' | \
+		awk -F: '($2 !~ /^#/) { print $1 " s/^([[:space:]]*)(.*)/\\1# Removed by comf\\n\\1: # \\2/;" }' | \
 		sed -rnf- -e'p' ~/.bashrc-dist >> ~/.bashrc
 	
 	# Source additional files
@@ -76,7 +76,7 @@ setup_bash_profile() {
 	$verbose && echo "Fixing bash profile config load order"
 	
 	# Don't source .bashrc from .profile
-	sed -ri 's/^([[:space:]]*).*?((\.|sh|bash|source) .*?.bashrc.*)/\1# Source .bashrc from .bash_profile instead\n\1# \2\n\1;/g' ~/.profile
+	sed -ri 's/^([[:space:]]*).*?((\.|sh|bash|source) .*?.bashrc.*)/\1# Source .bashrc from .bash_profile instead\n\1# \2\n\1:/g' ~/.profile
 	
 	# Source .profile and .bashrc for interactive login shells
 	download_file "$download_url/.bash_profile"
