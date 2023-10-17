@@ -18,14 +18,27 @@ download_file() {
 		echo "Fetching ${destfile#$HOME/}"
 	fi
 	
+	# Determine whether we should use a temp file
+	local outfile
+	[[ "$destfile" == - ]] && outfile=$destfile || outfile="${destfile}.temp"
+	
 	# Download using available tools
 	if hash curl 2>/dev/null; then
-		curl -LSso "$destfile" "$srcfile"
+		curl -LSso "$outfile" "$srcfile"
 	elif hash wget 2>/dev/null; then
-		wget --no-hsts -qO "$destfile" "$srcfile"
+		wget --no-hsts -qO "$outfile" "$srcfile"
 	else
 		echo >&2 "Unable to download file"
 		return 1
+	fi
+	
+	# Check for changes and backup old file
+	if [[ -f "$outfile" ]]; then
+		if cmp -s "$destfile" "$outfile"; then
+			rm "$outfile"
+		else
+			mv --backup=numbered "$outfile" "$destfile"
+		fi
 	fi
 }
 
@@ -55,7 +68,7 @@ setup_bashrc() {
 	
 	$verbose && echo "Merging .bashrc configs"
 	
-	cp ~/.bashrc ~/.bashrc-dist
+	mv ~/.bashrc ~/.bashrc-dist
 	
 	# Prepend custom settings to .bashrc
 	download_file "$download_url/.bashrc" - > ~/.bashrc
