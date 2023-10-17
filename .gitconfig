@@ -1,6 +1,6 @@
 [core]
 	editor = vim
-	whitespace = blank-at-eof,space-before-tab
+	whitespace = -blank-at-eol,blank-at-eof,space-before-tab
 [user]
 	email = mageluingil@gmail.com
 	name = Daniel Matthies
