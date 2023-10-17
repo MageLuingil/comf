@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eo pipefail
 
 declare -r COMF_BASE_URL="https://raw.githubusercontent.com/MageLuingil/comf"
 
@@ -30,6 +30,9 @@ download_file() {
 }
 
 setup_profile() {
+	# The existence of .profile-dist indicates this has already been done
+	[[ -f ~/.profile-dist ]] && return
+	
 	$verbose && echo "Adding env vars to .profile"
 	
 	cp ~/.profile ~/.profile-dist
@@ -47,6 +50,9 @@ setup_profile() {
 }
 
 setup_bashrc() {
+	# The existence of .bashrc-dist indicates this has already been done
+	[[ -f ~/.bashrc-dist ]] && return
+	
 	$verbose && echo "Merging .bashrc configs"
 	
 	cp ~/.bashrc ~/.bashrc-dist
@@ -73,6 +79,9 @@ setup_bashrc() {
 }
 
 setup_bash_profile() {
+	# The existence of .bash_profile indicates this is already correct
+	[[ -f ~/.bash_profile ]] && return
+	
 	$verbose && echo "Fixing bash profile config load order"
 	
 	# Don't source .bashrc from .profile
@@ -87,7 +96,7 @@ download_confs() {
 	local filename
 	for filename in "${conf_files[@]}"; do
 		download_file "$download_url/$filename" ~/"$filename"
-		if [[ "$(dirname "$filename")" = ".bashrc.d" ]]; then
+		if [[ "$filename" == .bashrc.d/* ]]; then
 			chmod +x ~/"$filename"
 		fi
 	done
@@ -118,15 +127,17 @@ setup_environment() {
 	else
 		hash vim 2>/dev/null || sudo apt install -y vim
 		
-		[[ -f ~/.profile-dist ]] 	|| setup_profile
-		[[ -f ~/.bashrc-dist ]] 	|| setup_bashrc
-		[[ -f ~/.bash_profile ]] 	|| setup_bash_profile
+		# Update bash profile configs
+		setup_profile
+		setup_bashrc
+		setup_bash_profile
 		
+		# Update all other configs
 		download_confs
 	fi
 	
 	# Source new bash configs
-	if [[ -x ~/.bash_profile ]]; then
+	if [[ -r ~/.bash_profile ]]; then
 		. ~/.bash_profile
 	fi
 }
