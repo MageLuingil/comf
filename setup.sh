@@ -102,6 +102,48 @@ download_confs() {
 	done
 }
 
+move_xdg_user_dir() {
+	local xdg_dir_name="$1" destdir="$2"
+	local srcdir="$(xdg-user-dir $xdg_dir_name)"
+	
+	# Skip missing and already-correct directories
+	[[ ! -d "$srcdir" || "$srcdir" == ~ || "$srcdir" == "$destdir" ]] && return
+	
+	$verbose && echo "Moving XDG_${xdg_dir_name}_DIR to $destdir"
+	
+	if [[ -d "$destdir" ]]; then
+		# Destination directory already exists; move directory contents (if any)
+		# Source directory will be deleted later (XDG doesn't like when we delete active user dirs)
+		if [[ -z "$(find "$srcdir" -maxdepth 0 -empty)" ]]; then
+			mv "$srcdir"/* $destdir
+		fi
+	else
+		# Destination directory does not already exist; move entire directory
+		mkdir -p "$(dirname $destdir)"
+		mv "$srcdir" "$destdir"
+	fi
+	
+	xdg-user-dirs-update --set "$xdg_dir_name" "$destdir"
+	if [[ -d "$srcdir" ]]; then
+		rm -r "$srcdir"
+	fi
+}
+
+setup_xdg_dirs() {
+	if ! hash xdg-user-dir 2>/dev/null || ! hash xdg-user-dirs-update 2>/dev/null; then
+		$verbose && echo >&2 "Skipping XDG setup - xdg-user-dirs utility not found"
+		return
+	fi
+	
+	move_xdg_user_dir DESKTOP ~/System/Desktop
+	move_xdg_user_dir DOWNLOAD ~/System/Downloads
+	move_xdg_user_dir TEMPLATES ~/System/Templates
+	move_xdg_user_dir PUBLICSHARE ~/System/Public
+	move_xdg_user_dir MUSIC ~/Multimedia/Music
+	move_xdg_user_dir PICTURES ~/Multimedia/Pictures
+	move_xdg_user_dir VIDEOS ~/Multimedia/Videos
+}
+
 setup_environment() {
 	local OPTION OPTARG OPTIND
 	local HOME="$HOME"
@@ -134,6 +176,9 @@ setup_environment() {
 		
 		# Update all other configs
 		download_confs
+		
+		# Clean up default XDG dirs from the root of home
+		setup_xdg_dirs
 	fi
 	
 	# Source new bash configs
