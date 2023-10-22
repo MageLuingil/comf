@@ -7,11 +7,11 @@ Setup
 -----
 
 ```
-curl -o- https://raw.githubusercontent.com/MageLuingil/comf/main/setup.sh | bash
+curl -L mageluingil.github.io/comf/setup.sh | bash
 ```
 or
 ```
-wget -qO- https://raw.githubusercontent.com/MageLuingil/comf/main/setup.sh | bash
+wget -qO- mageluingil.github.io/comf/setup.sh | bash
 ```
 
 Options
@@ -20,7 +20,7 @@ Options
 To run the script with additional args:
 
 ```
-curl -o- https://raw.githubusercontent.com/MageLuingil/comf/main/setup.sh | bash -s -- [OPTIONS]
+curl -L mageluingil.github.io/comf/setup.sh | bash -s -- [OPTIONS]
 ```
 
 Available options:
