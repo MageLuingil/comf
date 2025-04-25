@@ -20,4 +20,7 @@
 	cmd = meld "$LOCAL" "$MERGED" "$REMOTE" --output "$MERGED" 2>/dev/null # Show partially merged file in middle pane
 	# cmd = meld "$LOCAL" "$BASE" "$REMOTE" --output "$MERGED" 2>/dev/null # Show shared ancestor in middle pane
 [alias]
-	new-branch = checkout origin/master-stable --no-track -b
+	clean-merged-branches = !git branch --no-color --list --merged | sed -n '/^  master\\|^\\*/!p' | xargs -n1 git branch -d
+	new-branch = checkout origin/master --no-track -b
+[init]
+	defaultBranch = master
